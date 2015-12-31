@@ -1,0 +1,7 @@
+sparknotebook:
+    build: .
+    #command: bash -c "ls"
+    volumes: 
+        - ./notebooks:/opt/docker/notebooks
+    ports:
+        - "9000:9000"

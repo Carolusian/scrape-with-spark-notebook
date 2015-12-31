@@ -1,0 +1,86 @@
+{
+  "metadata" : {
+    "name" : "2012 - LegCo Election Scraper",
+    "user_save_timestamp" : "1970-01-01T00:00:00.000Z",
+    "auto_save_timestamp" : "1970-01-01T00:00:00.000Z",
+    "language_info" : {
+      "name" : "scala",
+      "file_extension" : "scala",
+      "codemirror_mode" : "text/x-scala"
+    },
+    "trusted" : true,
+    "customLocalRepo" : "/tmp/repo-test/",
+    "customRepos" : [ "mvn1 % default % https://repo1.maven.org/maven2/ % mvn", "oss % default % https://oss.sonatype.org/content/repositories/public % mvn", "typesafe % default % https://repo.typesafe.com/typesafe/releases % mvn" ],
+    "customDeps" : [ "net.ruippeixotog %% scala-scraper % 0.1.2" ],
+    "customImports" : [ "import scala.util._", "import org.apache.spark.SparkContext._" ],
+    "customArgs" : null,
+    "customSparkConf" : {
+      "spark.master" : "local[4]"
+    }
+  },
+  "cells" : [ {
+    "metadata" : {
+      "trusted" : true,
+      "input_collapsed" : false,
+      "collapsed" : false
+    },
+    "cell_type" : "code",
+    "source" : ":remote-repo oss-sonatype % default % https://oss.sonatype.org/content/repositories/releases/ % maven",
+    "outputs" : [ ]
+  }, {
+    "metadata" : {
+      "trusted" : true,
+      "input_collapsed" : false,
+      "collapsed" : false
+    },
+    "cell_type" : "code",
+    "source" : ":dp +net.ruippeixotog %% scala-scraper % 0.1.2",
+    "outputs" : [ ]
+  }, {
+    "metadata" : {
+      "trusted" : true,
+      "input_collapsed" : false,
+      "collapsed" : false
+    },
+    "cell_type" : "code",
+    "source" : "import net.ruippeixotog.scalascraper.browser.Browser\nimport org.jsoup.Jsoup\nimport scala.collection.JavaConversions._",
+    "outputs" : [ ]
+  }, {
+    "metadata" : {
+      "trusted" : true,
+      "input_collapsed" : false,
+      "collapsed" : false
+    },
+    "cell_type" : "code",
+    "source" : "val browser = new Browser\n\n// Get all links of voting growth rate\nval baseUrl = \"http://www.elections.gov.hk/legco2012/chi/\"\nval landingUrl = s\"${baseUrl}turnout.html\"\nval landingDoc = browser.get(landingUrl)\nval options = landingDoc.getElementsByAttributeValue(\"name\", \"menu1\").first.children\nval optionList = scala.collection.mutable.ArrayBuffer(options: _*).toList\nval links = optionList map (_.attr(\"value\")) map ( baseUrl + _ )",
+    "outputs" : [ ]
+  }, {
+    "metadata" : {
+      "trusted" : true,
+      "input_collapsed" : false,
+      "collapsed" : false
+    },
+    "cell_type" : "code",
+    "source" : "def votingGrowthRateTable (url:String) = { \n  val doc = browser.get(url)\n\n  // Get the html table where the data is placed in\n  val startTag = \"<!--#start_vt_body-->\"; val endTag = \"<!--#end_vt_body-->\"\n  val html = doc.html\n  val tableStartPos = html.indexOf(startTag) + startTag.length\n  val tableEndPos = html.indexOf(endTag)\n  val htmlTable = s\"<table>${html.drop(tableStartPos).take(tableEndPos - tableStartPos)}</table>\"\n\n  // We only need the `tr` elements\n  val rowElements = Jsoup\n    .parseBodyFragment(htmlTable).getElementsByTag(\"tr\")\n\n  // Convert the rows to scala Lists\n  scala.collection.mutable.ArrayBuffer(rowElements: _*).toList\n}",
+    "outputs" : [ ]
+  }, {
+    "metadata" : {
+      "trusted" : true,
+      "input_collapsed" : false,
+      "collapsed" : false
+    },
+    "cell_type" : "code",
+    "source" : "def rowsCSV(rows:List[Any]) = {\n  // Remove unnecessary rows\n  val cleanedRows = rows filter (!_.toString.contains(\"images/\"))\n\n  // Convert the rows into csv format seperated by `,`\n  cleanedRows map { row => \n    // Query the immediate Children of each row\n    // Join with `,`\n    val rowXML = scala.xml.XML.loadString(row.toString)\n    rowXML \\ \"td\" map (_.text) mkString \",\"\n  }\n}",
+    "outputs" : [ ]
+  }, {
+    "metadata" : {
+      "trusted" : true,
+      "input_collapsed" : false,
+      "collapsed" : false
+    },
+    "cell_type" : "code",
+    "source" : "links map { link =>\n  val rows = rowsCSV(votingGrowthRateTable(link))\n  rows\n}",
+    "outputs" : [ ]
+  } ],
+  "nbformat" : 4
+}
